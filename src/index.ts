@@ -154,7 +154,7 @@ function attachApis(
         resource.methods.forEach(method => {
             app[method.toLowerCase()](
                 resource.path,
-                functionFor(method, resource.path, codeLocation, handler)
+                functionFor(method, resource.path.replace(/:([^/{}]+)/g, "{$1}"), codeLocation, handler)
             );
             console.log(
                 chalk.green(`${method} http://localhost:${port}${resource.path}`)
