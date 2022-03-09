@@ -1,0 +1,36 @@
+{
+  "/abc": {
+    "security": {
+      "GET": {
+        "scopes": []
+      }
+    },
+    "methods": [
+      "GET"
+    ],
+    "paths": {
+      "/{def}": {
+        "security": {
+          "GET": {
+            "scopes": []
+          }
+        },
+        "methods": [
+          "GET"
+        ],
+        "paths": {}
+      }
+    }
+  },
+  "/ghi": {
+    "security": {
+      "GET": {
+        "scopes": []
+      }
+    },
+    "methods": [
+      "GET"
+    ],
+    "paths": {}
+  }
+}

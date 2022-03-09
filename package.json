@@ -18,7 +18,8 @@
     "build": "tsc --project tsconfig.json",
     "prepare": "husky install",
     "test": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
-    "lint": "eslint **/*.ts"
+    "lint": "eslint **/*.ts",
+    "example": "ts-node src/index.ts start --cognito-claims $INIT_CWD/test/example.json handler $INIT_CWD/test/example-app.ts"
   },
   "eslintIgnore": [
     "webpack.config.js"
@@ -73,6 +74,7 @@
     "@hexlabs/schema-api-ts": "^1.1.86",
     "@types/aws-lambda": "^8.10.92",
     "@types/chalk": "^2.2.0",
+    "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
     "@types/jest": "^26.0.23",
     "@types/node": "^15.6.1",
@@ -89,6 +91,7 @@
   "dependencies": {
     "chalk": "^4.1.0",
     "commander": "^6.0.0",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "path": "^0.12.7",
     "ts-node": "^8.8.1",

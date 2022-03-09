@@ -2,12 +2,14 @@
 
 import { Command } from "commander";
 import * as tsNode from "ts-node";
+import cors from "cors";
 import chalk from "chalk";
 import {PathInfo} from "@hexlabs/schema-api-ts/dist/mapper";
 import express, {RequestHandler} from "express";
 import {
     APIGatewayProxyEvent
 } from "aws-lambda";
+import {Request} from "express-serve-static-core";
 
 const program = new Command();
 
@@ -83,25 +85,29 @@ function queryParameters(expressQuery: {
     );
 }
 
+function extractCognitoRequestContext(req: Request): { authorizer: { claims: unknown } } | undefined {
+    const authHeader = req.header("Authorization");
+    const claims =
+        authHeader && authHeader.includes("Bearer ")
+            ? Buffer.from(authHeader.substring(7).split(".")[1], "base64").toString(
+                "ascii"
+            )
+            : undefined;
+    return claims
+        ? { authorizer: { claims: JSON.parse(claims) } }
+        : undefined;
+}
 
 function functionFor(
     method: string,
     path: string,
     codeLocation: string,
-    handler: string
+    handler: string,
+    useCognitoClaims: boolean
 ): RequestHandler {
     return (req, res) => {
         const headers = req.headers;
-        const authHeader = req.header("Authorization");
-        const claims =
-            authHeader && authHeader.includes("Bearer ")
-                ? new Buffer(authHeader.substring(7).split(".")[1], "base64").toString(
-                    "ascii"
-                )
-                : undefined;
-        const requestContext = claims
-            ? { authorizer: { claims: JSON.parse(claims) } }
-            : undefined;
+        const requestContext = useCognitoClaims ? {requestContext: extractCognitoRequestContext(req)} : {};
         const params = req.params;
         const queryParams = queryParameters(
             (req.query ?? {}) as { [key: string]: undefined | string | string[] }
@@ -113,7 +119,7 @@ function functionFor(
             httpMethod: method.toUpperCase(),
             pathParameters: params,
             path: req.path,
-            requestContext,
+            ...requestContext,
             ...queryParams,
         } as unknown as APIGatewayProxyEvent;
         clearRequireCache();
@@ -148,13 +154,14 @@ function attachApis(
     handler: string,
     codeLocation: string,
     port: string,
-    app: any
+    app: any,
+    useCognitoClaims: boolean
 ) {
     apis.forEach((resource) => {
         resource.methods.forEach(method => {
             app[method.toLowerCase()](
                 resource.path,
-                functionFor(method, resource.path.replace(/:([^/{}]+)/g, "{$1}"), codeLocation, handler)
+                functionFor(method, resource.path.replace(/:([^/{}]+)/g, "{$1}"), codeLocation, handler, useCognitoClaims)
             );
             console.log(
                 chalk.green(`${method} http://localhost:${port}${resource.path}`)
@@ -209,7 +216,8 @@ async function runApi(
             const PORT = process.env.PORT || "3000";
             const app = express();
             app.use(rawBody);
-            attachApis(definitions, handler, entryPoint, PORT, app);
+            app.use(cors())
+            attachApis(definitions, handler, entryPoint, PORT, app, command.cognitoClaims);
             app.listen(PORT, () =>
                 console.log(`Api is running here 👉 http://localhost:${PORT}`)
             );
@@ -231,6 +239,7 @@ function startCommand(): any {
             "Location of Local Environment Variables"
         )
         .option("-t, --ts-project <fileName>", "TS Config")
+        .option("-c, --cognito-claims", "Extract Claims into request context like cognito would")
         .action(runApi);
 }
 
