@@ -192,8 +192,7 @@ async function runApi(
             console.log(chalk.green("Registering tsConfig", command.tsProject))
             tsNode.register({ project: command.tsProject });
         } else {
-            console.log(chalk.yellow("Disabling type checking"))
-            tsNode.register({typeCheck: false});
+            tsNode.register({ typeCheck: false });
         }
         if(command.environmentVariables) {
             setEnvironments(command.environmentVariables)
