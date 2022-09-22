@@ -144,6 +144,7 @@ function functionFor(
                 console.log(
                     chalk.red("API - " + method + " " + req.path + " threw " + error)
                 );
+                console.error(chalk.red(error?.stack));
                 res.status(500).send(error.message);
             });
     };
