@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
-import { Command } from "commander";
+import {Command} from "commander";
 import * as tsNode from "ts-node";
 import cors from "cors";
 import chalk from "chalk";
 import {PathInfo} from "@hexlabs/schema-api-ts/dist/mapper";
 import express, {RequestHandler} from "express";
-import {
-    APIGatewayProxyEvent
-} from "aws-lambda";
+import {APIGatewayProxyEvent} from "aws-lambda";
 import {Request} from "express-serve-static-core";
 
 const program = new Command();
@@ -28,12 +26,6 @@ function apiDefinitionFromPathInfo(path: PathInfo, parent: string): ApiDefinitio
     const thisLevel = (path.methods?.length ?? 0) > 0 ? [{path: parent.replace(/{([^/{}]+)}/g, ":$1"), methods: path.methods!}] : [];
     const children = path.paths ? apiDefinitionFromPaths(path.paths, parent) : [];
     return [...thisLevel, ...children];
-}
-
-function clearRequireCache() {
-    Object.keys(require.cache).forEach(function (key) {
-        delete require.cache[key];
-    });
 }
 
 function rawBody(req: any, res: any, next: any) {
@@ -105,7 +97,7 @@ function functionFor(
     handler: string,
     useCognitoClaims: boolean
 ): RequestHandler {
-    return (req, res) => {
+    return async (req, res) => {
         const headers = req.headers;
         const requestContext = useCognitoClaims ? {requestContext: extractCognitoRequestContext(req)} : {};
         const params = req.params;
@@ -122,8 +114,8 @@ function functionFor(
             ...requestContext,
             ...queryParams,
         } as unknown as APIGatewayProxyEvent;
-        clearRequireCache();
-        require(codeLocation)[handler](event)
+        const code = await import(`${codeLocation}?update=${Date.now()}`);
+        code[handler](event)
             .then((response: any) => {
                 console.log(
                     chalk.green(
@@ -171,9 +163,9 @@ function attachApis(
     });
 }
 
-function setEnvironments(location: string) {
+async function setEnvironments(location: string) {
     console.log(chalk.green('Loading environment variables from json file at ', location))
-    const envJson = require(location);
+    const envJson = await import(`${location}?update=${Date.now()}`);
     Object.keys(envJson).forEach(key => {
         const value = envJson[key];
         console.log(chalk.green(`Setting Environment - ${key} = ${value}`));
@@ -195,15 +187,17 @@ async function runApi(
             tsNode.register({ typeCheck: false });
         }
         if(command.environmentVariables) {
-            setEnvironments(command.environmentVariables)
+            await setEnvironments(command.environmentVariables)
         }
         console.log(
             chalk.green(`Running apis from definitions at ${apiInfo}`)
         );
-        const paths = require(apiInfo);
-        const definitions = apiDefinitionFromPaths(paths);
-        console.log(chalk.green('Loading entrypoint at ', entryPoint))
-        const lambda = require(entryPoint);
+        const paths = await import(apiInfo, {
+            assert: { type: "json" },
+        });
+        const definitions = apiDefinitionFromPaths(paths.default);
+        console.log(chalk.green('Loading entrypoint at ', entryPoint));
+        const lambda = await import(`${entryPoint}?update=${Date.now()}`);
         if (lambda && lambda[handler]) {
             if (definitions.length === 0) {
                 console.log(

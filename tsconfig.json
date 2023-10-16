@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "module": "ESNext",
+    "target": "ES2022",
     "rootDir": "src",
     "baseUrl": "src",
     "outDir": "./dist",
@@ -13,14 +15,15 @@
     "strictFunctionTypes": true,
     "allowJs": true,
     "moduleResolution": "node",
-    "module": "commonjs",
-    "target": "ESNext",
     "pretty": true,
     "inlineSourceMap": false,
     "inlineSources": false,
     "esModuleInterop": true
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
 }

@@ -4,6 +4,7 @@
   "license": "Apache-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "bin": {
     "run-lambda": "dist/index.js"
   },
@@ -17,7 +18,6 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "prepare": "husky install",
-    "test": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
     "lint": "eslint **/*.ts",
     "example": "ts-node src/index.ts start --cognito-claims $INIT_CWD/test/example.json handler $INIT_CWD/test/example-app.ts"
   },
@@ -27,13 +27,11 @@
   "eslintConfig": {
     "extends": [
       "eslint:recommended",
-      "plugin:jest/recommended",
       "plugin:@typescript-eslint/recommended"
     ],
     "env": {
       "node": true,
-      "es6": true,
-      "jest/globals": true
+      "es6": true
     },
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
@@ -41,16 +39,14 @@
       "sourceType": "module"
     },
     "plugins": [
-      "@typescript-eslint/eslint-plugin",
-      "jest"
+      "@typescript-eslint/eslint-plugin"
     ],
     "rules": {
       "@typescript-eslint/no-explicit-any": 0,
       "@typescript-eslint/no-non-null-assertion": 0,
       "@typescript-eslint/no-empty-function": 0,
       "@typescript-eslint/explicit-function-return-type": 0,
-      "@typescript-eslint/no-var-requires": 0,
-      "jest/expect-expect": 0
+      "@typescript-eslint/no-var-requires": 0
     }
   },
   "repository": {
@@ -76,18 +72,13 @@
     "@types/chalk": "^2.2.0",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
-    "@types/jest": "^26.0.23",
-    "@types/node": "^15.6.1",
-    "@typescript-eslint/eslint-plugin": "^4.26.0",
-    "@typescript-eslint/parser": "^4.26.0",
+    "@types/node": "^18.18.5",
+    "@typescript-eslint/eslint-plugin": "^6.7.5",
+    "@typescript-eslint/parser": "^6.7.5",
     "aws-lambda": "^1.0.7",
-    "eslint": "^7.27.0",
-    "eslint-plugin-jest": "^24.3.6",
+    "eslint": "^8.51.0",
     "husky": "^6.0.0",
-    "jest": "^27.0.3",
-    "jest-junit": "^10.0.0",
-    "ts-jest": "^27.0.2",
-    "typescript": "^4.5.5"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
     "chalk": "^4.1.0",
@@ -95,6 +86,6 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "path": "^0.12.7",
-    "ts-node": "^8.8.1"
+    "ts-node": "^10.9.1"
   }
 }
