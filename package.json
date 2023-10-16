@@ -67,24 +67,24 @@
   },
   "homepage": "",
   "devDependencies": {
-    "@hexlabs/schema-api-ts": "^1.1.86",
-    "@types/aws-lambda": "^8.10.92",
+    "@hexlabs/schema-api-ts": "^2.0.103",
+    "@types/aws-lambda": "^8.10.124",
     "@types/chalk": "^2.2.0",
-    "@types/cors": "^2.8.12",
-    "@types/express": "^4.17.13",
-    "@types/node": "^18.18.5",
+    "@types/cors": "^2.8.14",
+    "@types/express": "^4.17.19",
+    "@types/node": "^20.8.6",
     "@typescript-eslint/eslint-plugin": "^6.7.5",
     "@typescript-eslint/parser": "^6.7.5",
     "aws-lambda": "^1.0.7",
     "eslint": "^8.51.0",
-    "husky": "^6.0.0",
+    "husky": "^8.0.3",
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "chalk": "^4.1.0",
-    "commander": "^6.0.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
     "cors": "^2.8.5",
-    "express": "^4.17.1",
+    "express": "^4.18.2",
     "path": "^0.12.7",
     "ts-node": "^10.9.1"
   }
