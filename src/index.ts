@@ -9,6 +9,8 @@ import express, {RequestHandler} from "express";
 import {APIGatewayProxyEvent} from "aws-lambda";
 import {Request} from "express-serve-static-core";
 
+import 'dotenv/config'
+
 const program = new Command();
 
 type Paths = Record<string, PathInfo>
