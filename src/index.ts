@@ -6,7 +6,7 @@ import cors from "cors";
 import chalk from "chalk";
 import {PathInfo} from "@hexlabs/schema-api-ts/dist/mapper";
 import express, {RequestHandler} from "express";
-import {APIGatewayProxyEvent} from "aws-lambda";
+import { APIGatewayProxyEvent, SNSEvent, SQSEvent } from "aws-lambda";
 import {Request} from "express-serve-static-core";
 
 import 'dotenv/config'
@@ -15,12 +15,13 @@ const program = new Command();
 
 type Paths = Record<string, PathInfo>
 type ApiDefinition = {
+    type?: 'sqs' | 'sns';
     path: string,
     methods: string[]
 }
 
 function apiDefinitionFromPaths(paths: Paths, parent = ''): ApiDefinition[] {
-    const resources = Object.keys(paths);
+    const resources = Object.keys(paths).filter(it => !(paths[it] as any).type);
     return resources.flatMap(resource => apiDefinitionFromPathInfo(paths[resource], parent + resource));
 }
 
@@ -97,51 +98,95 @@ function functionFor(
     path: string,
     codeLocation: string,
     handler: string,
-    useCognitoClaims: boolean
+    useCognitoClaims: boolean,
+    type: 'api' | 'sns' | 'sqs'
 ): RequestHandler {
-    return async (req, res) => {
-        const headers = req.headers;
-        const requestContext = useCognitoClaims ? {requestContext: extractCognitoRequestContext(req)} : {};
-        const params = req.params;
-        const queryParams = queryParameters(
-            (req.query ?? {}) as { [key: string]: undefined | string | string[] }
-        );
-        const event: APIGatewayProxyEvent = {
-            headers: headers as APIGatewayProxyEvent["headers"],
-            resource: path,
-            body: (req as any).rawBody,
-            httpMethod: method.toUpperCase(),
-            pathParameters: params,
-            path: req.path,
-            ...requestContext,
-            ...queryParams,
-        } as unknown as APIGatewayProxyEvent;
-        const code = await import(`${codeLocation}?update=${Date.now()}`);
-        code[handler](event)
-            .then((response: any) => {
-                console.log(
+    if(type === 'sqs') {
+        return async (req, res) => {
+            const event: SQSEvent = {
+                Records: [{body: (req as any).rawBody } as any]
+            };
+            const code = await import(`${codeLocation}?update=${Date.now()}`);
+            code[handler](event)
+              .then(() => {
+                  console.log(chalk.green("SQS Success"));
+                  res
+                    .status(200)
+                    .send('');
+              })
+              .catch((error: any) => {
+                  console.log(chalk.red("SQS - " + req.path + " threw " + error)
+                  );
+                  console.error(chalk.red(error?.stack));
+                  res.status(500).send(error.message);
+              });
+        }
+    }
+    if(type === 'sns') {
+        return async (req, res) => {
+            const event: SNSEvent = {
+                Records: [{Sns: { Message: (req as any).rawBody } } as any]
+            };
+            const code = await import(`${codeLocation}?update=${Date.now()}`);
+            code[handler](event)
+              .then(() => {
+                  console.log(chalk.green("SNS Success"));
+                  res
+                    .status(200)
+                    .send('');
+              })
+              .catch((error: any) => {
+                  console.log(chalk.red("SNS - " + req.path + " threw " + error)
+                  );
+                  console.error(chalk.red(error?.stack));
+                  res.status(500).send(error.message);
+              });
+        }
+    }
+
+        return async (req, res) => {
+            const headers = req.headers;
+            const requestContext = useCognitoClaims ? {requestContext: extractCognitoRequestContext(req)} : {};
+            const params = req.params;
+            const queryParams = queryParameters(
+              (req.query ?? {}) as { [key: string]: undefined | string | string[] }
+            );
+            const event: APIGatewayProxyEvent = {
+                headers: headers as APIGatewayProxyEvent["headers"],
+                resource: path,
+                body: (req as any).rawBody,
+                httpMethod: method.toUpperCase(),
+                pathParameters: params,
+                path: req.path,
+                ...requestContext,
+                ...queryParams,
+            } as unknown as APIGatewayProxyEvent;
+            const code = await import(`${codeLocation}?update=${Date.now()}`);
+            code[handler](event)
+              .then((response: any) => {
+                  console.log(
                     chalk.green(
-                        "API - " +
-                        method +
-                        " " +
-                        req.path +
-                        " responded with " +
-                        response.statusCode
+                      "API - " +
+                      method +
+                      " " +
+                      req.path +
+                      " responded with " +
+                      response.statusCode
                     )
-                );
-                res
+                  );
+                  res
                     .status(response.statusCode)
                     .set(response.headers)
                     .send(response.body);
-            })
-            .catch((error: any) => {
-                console.log(
+              })
+              .catch((error: any) => {
+                  console.log(
                     chalk.red("API - " + method + " " + req.path + " threw " + error)
-                );
-                console.error(chalk.red(error?.stack));
-                res.status(500).send(error.message);
-            });
-    };
+                  );
+                  console.error(chalk.red(error?.stack));
+                  res.status(500).send(error.message);
+              });
+        };
 }
 
 function attachApis(
@@ -156,10 +201,10 @@ function attachApis(
         resource.methods.forEach(method => {
             app[method.toLowerCase()](
                 resource.path,
-                functionFor(method, resource.path.replace(/:([^/{}]+)/g, "{$1}"), codeLocation, handler, useCognitoClaims)
+                functionFor(method, resource.path.replace(/:([^/{}]+)/g, "{$1}"), codeLocation, handler, useCognitoClaims, resource.type ?? 'api')
             );
             console.log(
-                chalk.green(`${method} http://localhost:${port}${resource.path}`)
+                chalk.green(`${(resource.type ?? 'api').toUpperCase()} ${method} http://localhost:${port}${resource.path}`)
             );
         });
     });
@@ -194,14 +239,16 @@ async function runApi(
         console.log(
             chalk.green(`Running apis from definitions at ${apiInfo}`)
         );
-        const paths = await import(apiInfo, {
-            assert: { type: "json" },
-        });
-        const definitions = apiDefinitionFromPaths(paths.default);
+        const otherPaths = await Promise.all(([apiInfo, ...(command.path ?? [])].map(it => import(it, {assert: { type: "json" }}))));
+        const combined = otherPaths.reduce((prev, next) => ({...prev, ...next.default}), {});
+        const definitions = apiDefinitionFromPaths(combined);
+        const nonApiDefinitionKeys: ApiDefinition[] = Object.keys(combined).filter(it => !!combined[it].type)
+          .map(key => ({path: key, type: combined[key].type, methods: ['POST'] }));
+        const apis = [...definitions, ...nonApiDefinitionKeys];
         console.log(chalk.green('Loading entrypoint at ', entryPoint));
         const lambda = await import(`${entryPoint}?update=${Date.now()}`);
         if (lambda && lambda[handler]) {
-            if (definitions.length === 0) {
+            if (apis.length === 0) {
                 console.log(
                     chalk.red(
                         "No API definitions exported please check docs on usage"
@@ -213,7 +260,7 @@ async function runApi(
             const app = express();
             app.use(rawBody);
             app.use(cors())
-            attachApis(definitions, handler, entryPoint, PORT, app, command.cognitoClaims);
+            attachApis(apis, handler, entryPoint, PORT, app, command.cognitoClaims);
             app.listen(PORT, () =>
                 console.log(`Api is running here 👉 http://localhost:${PORT}`)
             );
@@ -234,6 +281,7 @@ function startCommand(): any {
             "-e, --environment-variables <envVarsLocation>",
             "Location of Local Environment Variables"
         )
+        .option("-p, --path <paths...>", "Extra paths with api information")
         .option("-t, --ts-project <fileName>", "TS Config")
         .option("-c, --cognito-claims", "Extract Claims into request context like cognito would")
         .action(runApi);

@@ -19,7 +19,7 @@
     "build": "tsc --project tsconfig.json",
     "prepare": "husky install",
     "lint": "eslint **/*.ts",
-    "example": "ts-node src/index.ts start --cognito-claims $INIT_CWD/test/example.json handler $INIT_CWD/test/example-app.ts"
+    "example": "ts-node src/index.ts start -p $INIT_CWD/test/example2.json --cognito-claims $INIT_CWD/test/example.json handler $INIT_CWD/test/example-app.ts"
   },
   "eslintIgnore": [
     "webpack.config.js"
