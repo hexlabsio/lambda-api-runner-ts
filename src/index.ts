@@ -147,7 +147,13 @@ function functionFor(
         return async (req, res) => {
             const headers = req.headers;
             const requestContext = useCognitoClaims ? {requestContext: extractCognitoRequestContext(req)} : {};
-            const params = req.params;
+            const pathParameters = Object.keys(req.params).reduce(
+            (acc, key) => ({
+                ...acc,
+                [key]: encodeURIComponent(req.params[key]),
+            }),
+            {},
+          );
             const queryParams = queryParameters(
               (req.query ?? {}) as { [key: string]: undefined | string | string[] }
             );
@@ -156,7 +162,7 @@ function functionFor(
                 resource: path,
                 body: (req as any).rawBody,
                 httpMethod: method.toUpperCase(),
-                pathParameters: params,
+                pathParameters,
                 path: req.path,
                 ...requestContext,
                 ...queryParams,
