@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node --loader ts-node/esm --no-warnings
 
 import {Command} from "commander";
 import * as tsNode from "ts-node";
